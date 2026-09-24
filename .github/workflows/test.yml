@@ -1,0 +1,30 @@
+# Instala cada cask num Mac limpo a cada push, para um cask quebrado aparecer
+# aqui e nao na maquina de quem instala.
+name: test
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install from the tap
+        run: |
+          set -euo pipefail
+          brew tap "${GITHUB_REPOSITORY%%/homebrew-tap}/tap" "https://github.com/$GITHUB_REPOSITORY"
+          brew install --cask "${GITHUB_REPOSITORY%%/homebrew-tap}/tap/head-terminal"
+      - name: Check the app
+        run: |
+          set -euo pipefail
+          app="/Applications/Head Terminal.app"
+          test -d "$app"
+          if xattr -r "$app" | grep -q com.apple.quarantine; then
+            echo "::error::quarantine flag still set"; exit 1
+          fi
+          file "$app/Contents/MacOS/"* | head -3
+      - name: Uninstall
+        run: brew uninstall --cask --zap head-terminal
